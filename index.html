@@ -10,19 +10,24 @@
   header { background: #1a1a1a; color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
   header h1 { font-size: 18px; font-weight: 600; }
   .upload-btn { background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+
   .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
-  
+
   /* タグフィルター */
   .tag-filter { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
-  .tag-filter h2 { font-size: 14px; color: #666; margin-bottom: 10px; }
+  .tag-filter-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .tag-filter-header h2 { font-size: 14px; color: #666; }
+  .tag-filter-controls { display: flex; gap: 6px; align-items: center; }
+  .clear-btn { background: none; border: 1px solid #ccc; padding: 5px 12px; border-radius: 16px; font-size: 12px; cursor: pointer; color: #666; }
+  .sort-btn { background: none; border: 1px solid #ccc; padding: 5px 12px; border-radius: 16px; font-size: 12px; cursor: pointer; color: #666; }
+  .sort-btn.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
   .tag-filter-hint { font-size: 12px; color: #aaa; margin-bottom: 8px; }
-  .clear-btn { background: none; border: 1px solid #ccc; padding: 5px 12px; border-radius: 16px; font-size: 12px; cursor: pointer; color: #666; margin-left: 4px; }
-  .clear-btn:hover { background: #f0f0f0; }
   .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-list.collapsed { max-height: 80px; overflow: hidden; position: relative; }
+  .tag-list.collapsed::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 30px; background: linear-gradient(transparent, white); pointer-events: none; }
+  .tag-toggle-btn { display: block; width: 100%; text-align: center; background: none; border: none; color: #888; font-size: 12px; cursor: pointer; padding: 6px 0 0; }
   .tag-btn { background: #f0f0f0; border: none; padding: 6px 12px; border-radius: 16px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
   .tag-btn.active { background: #1a1a1a; color: white; }
-  .tag-btn:hover { background: #ddd; }
-  .tag-btn.active:hover { background: #333; }
 
   /* 写真グリッド */
   .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
@@ -36,20 +41,13 @@
 
   /* 空状態 */
   .empty-state { text-align: center; padding: 60px 20px; color: #999; }
-  .empty-state p { font-size: 16px; margin-bottom: 8px; }
-  .empty-state small { font-size: 13px; }
 
   /* モーダル */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
   .modal-content { background: white; border-radius: 16px; max-width: 92vw; max-height: 92vh; overflow-y: auto; width: 500px; position: relative; }
-  .modal-img { width: 100%; max-height: 65vh; object-fit: contain; background: #000; border-radius: 16px 16px 0 0; display: block; }
-  .modal-info { padding: 14px 16px; }
-  .modal-info .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-  .modal-info .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; }
-  .modal-info .modal-meta { font-size: 12px; color: #999; margin-bottom: 12px; }
-  .modal-dl-btn { display: block; width: 100%; background: #1a1a1a; color: white; border: none; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; }
-  .modal-dl-btn:hover { background: #333; }
+  .modal-img { width: 100%; max-height: 60vh; object-fit: contain; background: #000; border-radius: 16px 16px 0 0; display: block; }
+  .modal-info { padding: 14px 16px 20px; }
   .modal-close { position: fixed; top: 16px; right: 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 210; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
   .modal-nav { position: fixed; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; border-radius: 50%; width: 42px; height: 42px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 210; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
   .modal-nav.prev { left: 12px; }
@@ -57,17 +55,27 @@
   .modal-nav:disabled { opacity: 0.3; cursor: default; }
   .modal-counter { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; z-index: 210; }
 
-  /* タグ編集 */
-  .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  /* モーダル内セクション */
+  .modal-section-label { font-size: 11px; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 14px; }
+  .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+  .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; display: inline-flex; align-items: center; cursor: pointer; user-select: none; -webkit-user-select: none; }
   .modal-tag:active { background: #ffd0d0; }
-  .tag-edit-hint { font-size: 11px; color: #bbb; margin-bottom: 6px; }
-  .tag-edit-row { display: flex; gap: 6px; margin-top: 10px; margin-bottom: 10px; }
+  .tag-edit-hint { font-size: 11px; color: #bbb; margin-bottom: 8px; }
+  .tag-edit-row { display: flex; gap: 6px; margin-bottom: 10px; }
   .tag-edit-input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none; }
   .tag-edit-input:focus { border-color: #1a1a1a; }
   .tag-add-btn { background: #1a1a1a; color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
-  .tag-save-btn { display: block; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 10px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
-  .tag-save-btn:hover { background: #43a047; }
-  .tag-save-btn:disabled { background: #aaa; cursor: default; }
+
+  /* コメント */
+  .modal-comment-textarea { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 72px; outline: none; }
+  .modal-comment-textarea:focus { border-color: #1a1a1a; }
+
+  /* 保存・削除ボタン */
+  .modal-save-btn { display: block; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; margin-bottom: 8px; }
+  .modal-save-btn:disabled { background: #aaa; cursor: default; }
+  .modal-dl-btn { display: block; width: 100%; background: #1a1a1a; color: white; border: none; border-radius: 10px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; margin-bottom: 8px; }
+  .modal-delete-btn { display: block; width: 100%; background: none; color: #e53935; border: 1px solid #e53935; border-radius: 10px; padding: 10px; font-size: 14px; cursor: pointer; text-align: center; }
+  .modal-meta { font-size: 12px; color: #999; margin-top: 12px; }
 
   /* ローディング */
   .loading { text-align: center; padding: 40px; color: #999; font-size: 14px; }
@@ -82,9 +90,17 @@
 
 <div class="container">
   <div class="tag-filter">
-    <h2>タグで絞り込む <button class="clear-btn" onclick="clearTags()">クリア</button></h2>
+    <div class="tag-filter-header">
+      <h2>タグで絞り込む</h2>
+      <div class="tag-filter-controls">
+        <button class="sort-btn" id="sortJaBtn" onclick="setSortMode('ja')">あいうえお順</button>
+        <button class="sort-btn" id="sortEnBtn" onclick="setSortMode('en')">ABC順</button>
+        <button class="clear-btn" onclick="clearTags()">クリア</button>
+      </div>
+    </div>
     <div class="tag-filter-hint">複数タグを選ぶと「どれかに当てはまる」写真が表示されます</div>
-    <div class="tag-list" id="tagList"></div>
+    <div class="tag-list collapsed" id="tagList"></div>
+    <button class="tag-toggle-btn" id="tagToggleBtn" onclick="toggleTagList()">▼ もっと見る</button>
   </div>
 
   <div id="photoGrid" class="photo-grid">
@@ -101,15 +117,24 @@
   <div class="modal-content">
     <img class="modal-img" id="modalImg" src="" alt="">
     <div class="modal-info">
+
+      <div class="modal-section-label">タグ</div>
       <div class="modal-tags" id="modalTags"></div>
       <div class="tag-edit-hint">タグを長押しすると削除できます</div>
       <div class="tag-edit-row">
         <input class="tag-edit-input" id="tagInput" type="text" placeholder="タグを追加..." />
         <button class="tag-add-btn" onclick="addTagToModal()">+ 追加</button>
       </div>
-      <button class="tag-save-btn" id="tagSaveBtn" onclick="saveTags()">タグを保存</button>
-      <div class="modal-meta" id="modalMeta"></div>
+
+      <div class="modal-section-label">コメント</div>
+      <textarea class="modal-comment-textarea" id="modalComment" placeholder="メモや気づきを入力..."></textarea>
+
+      <button class="modal-save-btn" id="modalSaveBtn" onclick="savePhotoData()">保存する</button>
+
       <a class="modal-dl-btn" id="modalDlBtn" href="" download target="_blank">↓ この写真を保存</a>
+      <button class="modal-delete-btn" onclick="deletePhoto()">この写真を削除する</button>
+
+      <div class="modal-meta" id="modalMeta"></div>
     </div>
   </div>
 </div>
@@ -120,45 +145,75 @@ const SUPABASE_KEY = 'sb_publishable_c1r0_R5I8hUcbpca04duqA_EWrR3Fw0';
 
 let allPhotos = [];
 let activeTags = new Set();
+let tagSortMode = 'none'; // 'none' | 'ja' | 'en'
+let tagListExpanded = false;
 
 async function loadPhotos() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/photos?order=uploaded_at.desc`, {
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`
-      }
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
     });
     allPhotos = await res.json();
     buildTagList();
     renderPhotos(allPhotos);
   } catch(e) {
-    document.getElementById('photoGrid').innerHTML = '<div class="empty-state"><p>読み込みエラー</p><small>' + e.message + '</small></div>';
+    document.getElementById('photoGrid').innerHTML = '<div class="empty-state"><p>読み込みエラー: ' + e.message + '</p></div>';
   }
+}
+
+function setSortMode(mode) {
+  tagSortMode = tagSortMode === mode ? 'none' : mode;
+  document.getElementById('sortJaBtn').classList.toggle('active', tagSortMode === 'ja');
+  document.getElementById('sortEnBtn').classList.toggle('active', tagSortMode === 'en');
+  buildTagList();
 }
 
 function buildTagList() {
   const tagSet = new Set();
   allPhotos.forEach(p => (p.tags || []).forEach(t => tagSet.add(t)));
+  let tags = Array.from(tagSet);
+
+  if (tagSortMode === 'ja') {
+    tags.sort((a, b) => a.localeCompare(b, 'ja'));
+  } else if (tagSortMode === 'en') {
+    tags.sort((a, b) => a.localeCompare(b, 'en'));
+  }
+
   const container = document.getElementById('tagList');
   container.innerHTML = '';
-  tagSet.forEach(tag => {
+  tags.forEach(tag => {
     const btn = document.createElement('button');
     btn.className = 'tag-btn' + (activeTags.has(tag) ? ' active' : '');
     btn.textContent = tag;
     btn.onclick = function() { toggleTag(tag, this); };
     container.appendChild(btn);
   });
+
+  // タグが少なければ折りたたみ不要
+  const toggleBtn = document.getElementById('tagToggleBtn');
+  if (tags.length <= 8) {
+    container.classList.remove('collapsed');
+    toggleBtn.style.display = 'none';
+  } else {
+    toggleBtn.style.display = 'block';
+    if (!tagListExpanded) {
+      container.classList.add('collapsed');
+      toggleBtn.textContent = '▼ もっと見る（' + tags.length + '件）';
+    } else {
+      container.classList.remove('collapsed');
+      toggleBtn.textContent = '▲ 折りたたむ';
+    }
+  }
+}
+
+function toggleTagList() {
+  tagListExpanded = !tagListExpanded;
+  buildTagList();
 }
 
 function toggleTag(tag, btn) {
-  if (activeTags.has(tag)) {
-    activeTags.delete(tag);
-    btn.classList.remove('active');
-  } else {
-    activeTags.add(tag);
-    btn.classList.add('active');
-  }
+  if (activeTags.has(tag)) { activeTags.delete(tag); btn.classList.remove('active'); }
+  else { activeTags.add(tag); btn.classList.add('active'); }
   applyFilter();
 }
 
@@ -169,14 +224,8 @@ function clearTags() {
 }
 
 function applyFilter() {
-  if (activeTags.size === 0) {
-    renderPhotos(allPhotos);
-    return;
-  }
-  const filtered = allPhotos.filter(p =>
-    (p.tags || []).some(t => activeTags.has(t))
-  );
-  renderPhotos(filtered);
+  if (activeTags.size === 0) { renderPhotos(allPhotos); return; }
+  renderPhotos(allPhotos.filter(p => (p.tags || []).some(t => activeTags.has(t))));
 }
 
 let currentDisplayPhotos = [];
@@ -185,7 +234,7 @@ function renderPhotos(photos) {
   currentDisplayPhotos = photos;
   const grid = document.getElementById('photoGrid');
   if (!photos.length) {
-    grid.innerHTML = '<div class="empty-state"><p>写真がありません</p><small>アップロードボタンから追加してください</small></div>';
+    grid.innerHTML = '<div class="empty-state"><p>写真がありません</p></div>';
     return;
   }
   grid.innerHTML = photos.map((p, i) => `
@@ -217,19 +266,16 @@ function showModalPhoto(idx) {
   idx = Math.max(0, Math.min(idx, photos.length - 1));
   currentModalIndex = idx;
   const p = photos[idx];
-  const url = p.url;
-  const tags = p.tags || [];
-  const date = p.uploaded_at || '';
-  const by = p.uploaded_by || '';
-  const dlUrl = url.replace('/upload/', '/upload/fl_attachment/');
+  const dlUrl = p.url.replace('/upload/', '/upload/fl_attachment/');
 
-  document.getElementById('modalImg').src = url;
-  renderModalTags(tags);
+  document.getElementById('modalImg').src = p.url;
+  renderModalTags(p.tags || []);
   document.getElementById('tagInput').value = '';
-  document.getElementById('tagSaveBtn').textContent = 'タグを保存';
-  document.getElementById('tagSaveBtn').disabled = false;
-  document.getElementById('modalMeta').textContent = `${formatDate(date)}${by ? '　by ' + by : ''}`;
+  document.getElementById('modalComment').value = p.comment || '';
+  document.getElementById('modalSaveBtn').textContent = '保存する';
+  document.getElementById('modalSaveBtn').disabled = false;
   document.getElementById('modalDlBtn').href = dlUrl;
+  document.getElementById('modalMeta').textContent = `${formatDate(p.uploaded_at)}${p.uploaded_by ? '　by ' + p.uploaded_by : ''}`;
   document.getElementById('modalCounter').textContent = `${idx + 1} / ${photos.length}`;
   document.getElementById('modalPrev').disabled = idx === 0;
   document.getElementById('modalNext').disabled = idx === photos.length - 1;
@@ -239,33 +285,24 @@ function renderModalTags(tags) {
   document.getElementById('modalTags').innerHTML = tags.map(t =>
     `<span class="modal-tag" data-tag="${t}">${t}</span>`
   ).join('');
-
-  // 各タグに長押しイベントを設定
   document.querySelectorAll('#modalTags .modal-tag').forEach(el => {
     let timer;
     el.addEventListener('touchstart', () => {
       timer = setTimeout(() => {
-        const tag = el.dataset.tag;
-        if (confirm(`「${tag}」を削除しますか？`)) {
-          removeTagFromModal(tag);
-        }
+        if (confirm(`「${el.dataset.tag}」を削除しますか？`)) removeTagFromModal(el.dataset.tag);
       }, 600);
     });
     el.addEventListener('touchend', () => clearTimeout(timer));
     el.addEventListener('touchmove', () => clearTimeout(timer));
-    // PC対応：右クリックで削除
     el.addEventListener('contextmenu', e => {
       e.preventDefault();
-      const tag = el.dataset.tag;
-      if (confirm(`「${tag}」を削除しますか？`)) {
-        removeTagFromModal(tag);
-      }
+      if (confirm(`「${el.dataset.tag}」を削除しますか？`)) removeTagFromModal(el.dataset.tag);
     });
   });
 }
 
 function getCurrentModalTags() {
-  return Array.from(document.querySelectorAll('#modalTags .modal-tag')).map(el => el.childNodes[0].textContent.trim());
+  return Array.from(document.querySelectorAll('#modalTags .modal-tag')).map(el => el.dataset.tag);
 }
 
 function addTagToModal() {
@@ -273,21 +310,20 @@ function addTagToModal() {
   const tag = input.value.trim();
   if (!tag) return;
   const current = getCurrentModalTags();
-  if (current.includes(tag)) { input.value = ''; return; }
-  renderModalTags([...current, tag]);
+  if (!current.includes(tag)) renderModalTags([...current, tag]);
   input.value = '';
 }
 
 function removeTagFromModal(tag) {
-  const current = getCurrentModalTags().filter(t => t !== tag);
-  renderModalTags(current);
+  renderModalTags(getCurrentModalTags().filter(t => t !== tag));
 }
 
-async function saveTags() {
-  const btn = document.getElementById('tagSaveBtn');
-  const tags = getCurrentModalTags();
+async function savePhotoData() {
+  const btn = document.getElementById('modalSaveBtn');
   const p = currentDisplayPhotos[currentModalIndex];
   if (!p) return;
+  const tags = getCurrentModalTags();
+  const comment = document.getElementById('modalComment').value.trim();
   btn.disabled = true;
   btn.textContent = '保存中...';
   try {
@@ -299,13 +335,14 @@ async function saveTags() {
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       },
-      body: JSON.stringify({ tags })
+      body: JSON.stringify({ tags, comment })
     });
     if (res.ok) {
       p.tags = tags;
+      p.comment = comment;
       btn.textContent = '保存完了!';
       buildTagList();
-      setTimeout(() => { btn.textContent = 'タグを保存'; btn.disabled = false; }, 1500);
+      setTimeout(() => { btn.textContent = '保存する'; btn.disabled = false; }, 1500);
     } else {
       btn.textContent = 'エラー';
       btn.disabled = false;
@@ -316,26 +353,36 @@ async function saveTags() {
   }
 }
 
-// Enterキーでタグ追加
-document.getElementById('tagInput').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') addTagToModal();
-});
-
-function modalNav(dir) {
-  showModalPhoto(currentModalIndex + dir);
-}
-
-function closeModalDirect() {
-  document.getElementById('modal').classList.remove('open');
-}
-
-function closeModal(e) {
-  if (e.target === document.getElementById('modal')) {
-    document.getElementById('modal').classList.remove('open');
+async function deletePhoto() {
+  const p = currentDisplayPhotos[currentModalIndex];
+  if (!p) return;
+  if (!confirm('この写真を削除しますか？\n（元に戻せません）')) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photos?id=eq.${p.id}`, {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+    });
+    if (res.ok) {
+      closeModalDirect();
+      allPhotos = allPhotos.filter(x => x.id !== p.id);
+      buildTagList();
+      applyFilter();
+    } else {
+      alert('削除に失敗しました');
+    }
+  } catch(e) {
+    alert('削除エラー: ' + e.message);
   }
 }
 
-// キーボード操作
+function modalNav(dir) { showModalPhoto(currentModalIndex + dir); }
+
+function closeModalDirect() { document.getElementById('modal').classList.remove('open'); }
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal')) closeModalDirect();
+}
+
 document.addEventListener('keydown', e => {
   if (!document.getElementById('modal').classList.contains('open')) return;
   if (e.key === 'ArrowLeft') modalNav(-1);
@@ -343,12 +390,15 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModalDirect();
 });
 
-// スワイプ操作
 let touchStartX = 0;
 document.getElementById('modal').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
 document.getElementById('modal').addEventListener('touchend', e => {
   const diff = touchStartX - e.changedTouches[0].clientX;
   if (Math.abs(diff) > 50) modalNav(diff > 0 ? 1 : -1);
+});
+
+document.getElementById('tagInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTagToModal();
 });
 
 loadPhotos();
