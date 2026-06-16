@@ -437,54 +437,63 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// 写真タップ時：西部劇風「バキューン！」音（列で音程変化）
+// 写真タップ時：気持ちいいクリック音（列で音程変化）
 function playTapSound(col) {
   try {
     const ctx = getAudioCtx();
-    // コンプレッサーでクリッピング防止しつつ音量マックス
+    const t = ctx.currentTime;
     const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -6;
-    compressor.knee.value = 3;
-    compressor.ratio.value = 4;
+    compressor.threshold.value = -3;
+    compressor.knee.value = 6;
+    compressor.ratio.value = 3;
     compressor.attack.value = 0.001;
-    compressor.release.value = 0.1;
+    compressor.release.value = 0.15;
     compressor.connect(ctx.destination);
 
-    // 列ごとのパラメータ（ピッチダウン開始周波数で音程変化）
-    const params = [
-      { startFreq: 280, endFreq: 40,  noiseVol: 3.0, pitchVol: 2.5 },  // 左：最も重いドン
-      { startFreq: 380, endFreq: 60,  noiseVol: 3.0, pitchVol: 2.5 },  // 中：標準バン
-      { startFreq: 520, endFreq: 90,  noiseVol: 3.0, pitchVol: 2.5 },  // 右：高めパン
+    // 列ごとの音程（ミファソル・ラ・シの3音）
+    const notes = [
+      { freq: 523.25 },  // 左列：C5（ド）
+      { freq: 659.25 },  // 中列：E5（ミ）
+      { freq: 783.99 },  // 右列：G5（ソ）
     ];
-    const p = params[col !== undefined ? col % 3 : 0];
+    const note = notes[col !== undefined ? col % 3 : 0];
 
-    // 「バキューン」のピッチダウン部分（サイン波が急降下）
-    const osc = ctx.createOscillator();
-    const oscGain = ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(p.startFreq, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(p.endFreq, ctx.currentTime + 0.5);
-    oscGain.gain.setValueAtTime(p.pitchVol, ctx.currentTime);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.connect(oscGain); oscGain.connect(compressor);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+    // メイントーン（正弦波）
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.value = note.freq;
+    gain1.gain.setValueAtTime(0.0, t);
+    gain1.gain.linearRampToValueAtTime(0.8, t + 0.005);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    osc1.connect(gain1); gain1.connect(compressor);
+    osc1.start(t); osc1.stop(t + 0.35);
 
-    // 「バキ」の瞬間的な発射音（バンドパスノイズ）
-    const bufSize = ctx.sampleRate * 0.12;
+    // ハーモニク（倒倍音）
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.value = note.freq * 2;
+    gain2.gain.setValueAtTime(0.0, t);
+    gain2.gain.linearRampToValueAtTime(0.25, t + 0.005);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc2.connect(gain2); gain2.connect(compressor);
+    osc2.start(t); osc2.stop(t + 0.2);
+
+    // クリック感（短いノイズ）
+    const bufSize = Math.floor(ctx.sampleRate * 0.015);
     const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    const bandpass = ctx.createBiquadFilter();
-    bandpass.type = 'bandpass';
-    bandpass.frequency.value = 1200;
-    bandpass.Q.value = 0.5;
-    const noiseGain = ctx.createGain();
-    noiseGain.gain.setValueAtTime(p.noiseVol, ctx.currentTime);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-    noise.connect(bandpass); bandpass.connect(noiseGain); noiseGain.connect(compressor);
-    noise.start(ctx.currentTime); noise.stop(ctx.currentTime + 0.12);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const click = ctx.createBufferSource();
+    click.buffer = buffer;
+    const clickFilter = ctx.createBiquadFilter();
+    clickFilter.type = 'highpass';
+    clickFilter.frequency.value = 2000;
+    const clickGain = ctx.createGain();
+    clickGain.gain.value = 0.4;
+    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(compressor);
+    click.start(t);
   } catch(e) {}
 }
 
