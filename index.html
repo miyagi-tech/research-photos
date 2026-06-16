@@ -58,9 +58,9 @@
   .modal-counter { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; z-index: 210; }
 
   /* タグ編集 */
-  .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
-  .modal-tag .tag-del { background: none; border: none; color: #999; cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
-  .modal-tag .tag-del:hover { color: #e53935; }
+  .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; -webkit-user-select: none; }
+  .modal-tag:active { background: #ffd0d0; }
+  .tag-edit-hint { font-size: 11px; color: #bbb; margin-bottom: 6px; }
   .tag-edit-row { display: flex; gap: 6px; margin-top: 10px; margin-bottom: 10px; }
   .tag-edit-input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none; }
   .tag-edit-input:focus { border-color: #1a1a1a; }
@@ -102,6 +102,7 @@
     <img class="modal-img" id="modalImg" src="" alt="">
     <div class="modal-info">
       <div class="modal-tags" id="modalTags"></div>
+      <div class="tag-edit-hint">タグを長押しすると削除できます</div>
       <div class="tag-edit-row">
         <input class="tag-edit-input" id="tagInput" type="text" placeholder="タグを追加..." />
         <button class="tag-add-btn" onclick="addTagToModal()">+ 追加</button>
@@ -236,8 +237,31 @@ function showModalPhoto(idx) {
 
 function renderModalTags(tags) {
   document.getElementById('modalTags').innerHTML = tags.map(t =>
-    `<span class="modal-tag">${t}<button class="tag-del" onclick="removeTagFromModal('${t}')">x</button></span>`
+    `<span class="modal-tag" data-tag="${t}">${t}</span>`
   ).join('');
+
+  // 各タグに長押しイベントを設定
+  document.querySelectorAll('#modalTags .modal-tag').forEach(el => {
+    let timer;
+    el.addEventListener('touchstart', () => {
+      timer = setTimeout(() => {
+        const tag = el.dataset.tag;
+        if (confirm(`「${tag}」を削除しますか？`)) {
+          removeTagFromModal(tag);
+        }
+      }, 600);
+    });
+    el.addEventListener('touchend', () => clearTimeout(timer));
+    el.addEventListener('touchmove', () => clearTimeout(timer));
+    // PC対応：右クリックで削除
+    el.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const tag = el.dataset.tag;
+      if (confirm(`「${tag}」を削除しますか？`)) {
+        removeTagFromModal(tag);
+      }
+    });
+  });
 }
 
 function getCurrentModalTags() {
