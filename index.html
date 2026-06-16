@@ -442,7 +442,7 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// 写真タップ時：ドレミファソラシドの8音
+// 写真タップ時：木琴ポコポコ音
 function playTapSound(step) {
   try {
     const ctx = getAudioCtx();
@@ -452,57 +452,61 @@ function playTapSound(step) {
     compressor.knee.value = 6;
     compressor.ratio.value = 3;
     compressor.attack.value = 0.001;
-    compressor.release.value = 0.15;
+    compressor.release.value = 0.1;
     compressor.connect(ctx.destination);
 
     // ドレミファソラシド（C5〜高C6）
     const notes = [
-      523.25,  // ド C5
-      587.33,  // レ D5
-      659.25,  // ミ E5
-      698.46,  // ファ F5
-      783.99,  // ソ G5
-      880.00,  // ラ A5
-      987.77,  // シ B5
-      1046.50, // 高ド C6
+      523.25, 587.33, 659.25, 698.46,
+      783.99, 880.00, 987.77, 1046.50,
     ];
-    const note = { freq: notes[step % 8] };
+    const freq = notes[step % 8];
 
-    // メイントーン（正弦波）
+    // 木琴のポコッ感：短いアタック＋急速な減衰
+    // レイヤー1: 基音（正弦波）
     const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
+    const g1 = ctx.createGain();
     osc1.type = 'sine';
-    osc1.frequency.value = note.freq;
-    gain1.gain.setValueAtTime(0.0, t);
-    gain1.gain.linearRampToValueAtTime(0.8, t + 0.005);
-    gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-    osc1.connect(gain1); gain1.connect(compressor);
-    osc1.start(t); osc1.stop(t + 0.35);
+    osc1.frequency.value = freq;
+    g1.gain.setValueAtTime(0.0, t);
+    g1.gain.linearRampToValueAtTime(1.0, t + 0.003); // 瞬時に立ち上がる
+    g1.gain.exponentialRampToValueAtTime(0.001, t + 0.18); // 急速に消える
+    osc1.connect(g1); g1.connect(compressor);
+    osc1.start(t); osc1.stop(t + 0.18);
 
-    // ハーモニク（倒倍音）
+    // レイヤー2: 4倍音（木琴のコッン感）
     const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
+    const g2 = ctx.createGain();
     osc2.type = 'sine';
-    osc2.frequency.value = note.freq * 2;
-    gain2.gain.setValueAtTime(0.0, t);
-    gain2.gain.linearRampToValueAtTime(0.25, t + 0.005);
-    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-    osc2.connect(gain2); gain2.connect(compressor);
-    osc2.start(t); osc2.stop(t + 0.2);
+    osc2.frequency.value = freq * 4;
+    g2.gain.setValueAtTime(0.0, t);
+    g2.gain.linearRampToValueAtTime(0.3, t + 0.002);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+    osc2.connect(g2); g2.connect(compressor);
+    osc2.start(t); osc2.stop(t + 0.06);
 
-    // クリック感（短いノイズ）
-    const bufSize = Math.floor(ctx.sampleRate * 0.015);
+    // レイヤー3: 2倍音（木質感）
+    const osc3 = ctx.createOscillator();
+    const g3 = ctx.createGain();
+    osc3.type = 'triangle';
+    osc3.frequency.value = freq * 2;
+    g3.gain.setValueAtTime(0.0, t);
+    g3.gain.linearRampToValueAtTime(0.4, t + 0.003);
+    g3.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+    osc3.connect(g3); g3.connect(compressor);
+    osc3.start(t); osc3.stop(t + 0.12);
+
+    // レイヤー4: コッンという打擁音（短いノイズ）
+    const bufSize = Math.floor(ctx.sampleRate * 0.008);
     const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
     const click = ctx.createBufferSource();
     click.buffer = buffer;
-    const clickFilter = ctx.createBiquadFilter();
-    clickFilter.type = 'highpass';
-    clickFilter.frequency.value = 2000;
-    const clickGain = ctx.createGain();
-    clickGain.gain.value = 0.4;
-    click.connect(clickFilter); clickFilter.connect(clickGain); clickGain.connect(compressor);
+    const cf = ctx.createBiquadFilter();
+    cf.type = 'bandpass'; cf.frequency.value = freq * 3; cf.Q.value = 1.5;
+    const cg = ctx.createGain(); cg.gain.value = 0.5;
+    click.connect(cf); cf.connect(cg); cg.connect(compressor);
     click.start(t);
   } catch(e) {}
 }
