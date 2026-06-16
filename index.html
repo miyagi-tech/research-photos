@@ -40,15 +40,22 @@
   .empty-state small { font-size: 13px; }
 
   /* モーダル */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
-  .modal-content { background: white; border-radius: 16px; max-width: 90vw; max-height: 90vh; overflow-y: auto; width: 480px; }
-  .modal-img { width: 100%; max-height: 60vh; object-fit: contain; background: #000; border-radius: 16px 16px 0 0; }
-  .modal-info { padding: 16px; }
-  .modal-info .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .modal-content { background: white; border-radius: 16px; max-width: 92vw; max-height: 92vh; overflow-y: auto; width: 500px; position: relative; }
+  .modal-img { width: 100%; max-height: 65vh; object-fit: contain; background: #000; border-radius: 16px 16px 0 0; display: block; }
+  .modal-info { padding: 14px 16px; }
+  .modal-info .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
   .modal-info .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; }
-  .modal-info .modal-meta { font-size: 12px; color: #999; }
-  .modal-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .modal-info .modal-meta { font-size: 12px; color: #999; margin-bottom: 12px; }
+  .modal-dl-btn { display: block; width: 100%; background: #1a1a1a; color: white; border: none; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; text-decoration: none; }
+  .modal-dl-btn:hover { background: #333; }
+  .modal-close { position: fixed; top: 16px; right: 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 38px; height: 38px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 210; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .modal-nav { position: fixed; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.85); border: none; border-radius: 50%; width: 42px; height: 42px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 210; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .modal-nav.prev { left: 12px; }
+  .modal-nav.next { right: 12px; }
+  .modal-nav:disabled { opacity: 0.3; cursor: default; }
+  .modal-counter { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; z-index: 210; }
 
   /* ローディング */
   .loading { text-align: center; padding: 40px; color: #999; font-size: 14px; }
@@ -75,12 +82,16 @@
 
 <!-- 拡大モーダル -->
 <div class="modal-overlay" id="modal" onclick="closeModal(event)">
-  <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">×</button>
+  <button class="modal-close" onclick="closeModalDirect()">×</button>
+  <button class="modal-nav prev" id="modalPrev" onclick="modalNav(-1)">‹</button>
+  <button class="modal-nav next" id="modalNext" onclick="modalNav(1)">›</button>
+  <div class="modal-counter" id="modalCounter"></div>
   <div class="modal-content">
     <img class="modal-img" id="modalImg" src="" alt="">
     <div class="modal-info">
       <div class="modal-tags" id="modalTags"></div>
       <div class="modal-meta" id="modalMeta"></div>
+      <a class="modal-dl-btn" id="modalDlBtn" href="" download target="_blank">↓ この写真を保存</a>
     </div>
   </div>
 </div>
@@ -157,7 +168,12 @@ function renderPhotos(photos) {
     return;
   }
   grid.innerHTML = photos.map(p => `
-    <div class="photo-card" onclick="openModal('${p.url}', ${JSON.stringify(p.tags || [])}, '${p.uploaded_at}', '${p.uploaded_by || ''}')">
+    <div class="photo-card"
+      data-url="${p.url}"
+      data-tags='${JSON.stringify(p.tags || [])}'
+      data-date="${p.uploaded_at || ''}"
+      data-by="${p.uploaded_by || ''}"
+      onclick="openModal('${p.url}', ${JSON.stringify(p.tags || [])}, '${p.uploaded_at}', '${p.uploaded_by || ''}')">
       <img src="${p.url}" alt="" loading="lazy">
       <div class="card-tags">${(p.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
       <div class="card-date">${formatDate(p.uploaded_at)}</div>
@@ -171,11 +187,50 @@ function formatDate(iso) {
   return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
 }
 
+let currentPhotos = [];
+let currentModalIndex = 0;
+
 function openModal(url, tags, date, by) {
+  // 現在表示中の写真リストからインデックスを探す
+  const grid = document.getElementById('photoGrid');
+  const cards = grid.querySelectorAll('.photo-card');
+  let idx = 0;
+  cards.forEach((c, i) => { if (c.dataset.url === url) idx = i; });
+  currentModalIndex = idx;
+  showModalPhoto(currentModalIndex);
+  document.getElementById('modal').classList.add('open');
+}
+
+function showModalPhoto(idx) {
+  const grid = document.getElementById('photoGrid');
+  const cards = Array.from(grid.querySelectorAll('.photo-card'));
+  if (!cards.length) return;
+  idx = Math.max(0, Math.min(idx, cards.length - 1));
+  currentModalIndex = idx;
+  const card = cards[idx];
+  const url = card.dataset.url;
+  const tags = JSON.parse(card.dataset.tags || '[]');
+  const date = card.dataset.date;
+  const by = card.dataset.by;
+
+  // Cloudinaryの高解像度URLを生成（変換パラメータを除去）
+  const dlUrl = url.replace('/upload/', '/upload/fl_attachment/');
+
   document.getElementById('modalImg').src = url;
   document.getElementById('modalTags').innerHTML = tags.map(t => `<span class="modal-tag">${t}</span>`).join('');
   document.getElementById('modalMeta').textContent = `${formatDate(date)}${by ? '　by ' + by : ''}`;
-  document.getElementById('modal').classList.add('open');
+  document.getElementById('modalDlBtn').href = dlUrl;
+  document.getElementById('modalCounter').textContent = `${idx + 1} / ${cards.length}`;
+  document.getElementById('modalPrev').disabled = idx === 0;
+  document.getElementById('modalNext').disabled = idx === cards.length - 1;
+}
+
+function modalNav(dir) {
+  showModalPhoto(currentModalIndex + dir);
+}
+
+function closeModalDirect() {
+  document.getElementById('modal').classList.remove('open');
 }
 
 function closeModal(e) {
@@ -183,6 +238,22 @@ function closeModal(e) {
     document.getElementById('modal').classList.remove('open');
   }
 }
+
+// キーボード操作
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('modal').classList.contains('open')) return;
+  if (e.key === 'ArrowLeft') modalNav(-1);
+  if (e.key === 'ArrowRight') modalNav(1);
+  if (e.key === 'Escape') closeModalDirect();
+});
+
+// スワイプ操作
+let touchStartX = 0;
+document.getElementById('modal').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.getElementById('modal').addEventListener('touchend', e => {
+  const diff = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) modalNav(diff > 0 ? 1 : -1);
+});
 
 loadPhotos();
 </script>
