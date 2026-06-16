@@ -448,8 +448,8 @@ function playTapSound() {
     osc.type = 'sine';
     osc.frequency.setValueAtTime(880, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.08);
-    gain.gain.setValueAtTime(0.18, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    gain.gain.setValueAtTime(0.8, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.18);
   } catch(e) {}
@@ -468,8 +468,8 @@ function playSwipeSound(dir) {
     const endFreq   = dir > 0 ? 300 : 500;
     osc.frequency.setValueAtTime(startFreq, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + 0.22);
-    gain.gain.setValueAtTime(0.12, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+    gain.gain.setValueAtTime(0.7, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.22);
   } catch(e) {}
