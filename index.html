@@ -260,6 +260,7 @@ function formatDate(iso) {
 let currentModalIndex = 0;
 
 function openModalByIndex(idx) {
+  playTapSound();
   currentModalIndex = idx;
   showModalPhoto(idx);
   document.getElementById('modal').classList.add('open');
@@ -381,6 +382,7 @@ async function deletePhoto() {
 }
 
 function modalNav(dir) {
+  playSwipeSound(dir);
   const img = document.getElementById('modalImg');
   const outClass = dir > 0 ? 'slide-out-left' : 'slide-out-right';
   const inClass  = dir > 0 ? 'slide-in-left'  : 'slide-in-right';
@@ -389,7 +391,6 @@ function modalNav(dir) {
     img.classList.remove(outClass);
     img.classList.add(inClass);
     showModalPhoto(currentModalIndex + dir);
-    // 次フレームでアニメーション開始
     requestAnimationFrame(() => requestAnimationFrame(() => {
       img.classList.remove(inClass);
     }));
@@ -428,6 +429,51 @@ document.getElementById('modal').addEventListener('touchend', e => {
 document.getElementById('tagInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') addTagToModal();
 });
+
+// --- 効果音 ---
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// 写真タップ時：明るいポップ音
+function playTapSound() {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.18);
+  } catch(e) {}
+}
+
+// スワイプ切り替え時：シューン音（方向で音程変化）
+function playSwipeSound(dir) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    const startFreq = dir > 0 ? 600 : 900;
+    const endFreq   = dir > 0 ? 300 : 500;
+    osc.frequency.setValueAtTime(startFreq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + 0.22);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.22);
+  } catch(e) {}
+}
 
 loadPhotos();
 </script>
