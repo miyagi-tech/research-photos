@@ -437,43 +437,54 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// 写真タップ時：列(0=左/1=中/2=右)で音程が違う銃声風ノイズ音
-// col=0: 低音ドン、col=1: 中音バン、col=2: 高音パン
+// 写真タップ時：西部劇風「バキューン！」音（列で音程変化）
 function playTapSound(col) {
   try {
     const ctx = getAudioCtx();
-    const duration = 0.35;
-    // 列ごとのパラメータ
+    // コンプレッサーでクリッピング防止しつつ音量マックス
+    const compressor = ctx.createDynamicsCompressor();
+    compressor.threshold.value = -6;
+    compressor.knee.value = 3;
+    compressor.ratio.value = 4;
+    compressor.attack.value = 0.001;
+    compressor.release.value = 0.1;
+    compressor.connect(ctx.destination);
+
+    // 列ごとのパラメータ（ピッチダウン開始周波数で音程変化）
     const params = [
-      { filterStart: 1200, filterEnd: 150, oscStart: 90,  oscEnd: 30,  oscVol: 1.0 },  // 左：重い低音
-      { filterStart: 2000, filterEnd: 300, oscStart: 150, oscEnd: 60,  oscVol: 0.8 },  // 中：標準
-      { filterStart: 3500, filterEnd: 600, oscStart: 220, oscEnd: 100, oscVol: 0.6 },  // 右：高めパン
+      { startFreq: 280, endFreq: 40,  noiseVol: 3.0, pitchVol: 2.5 },  // 左：最も重いドン
+      { startFreq: 380, endFreq: 60,  noiseVol: 3.0, pitchVol: 2.5 },  // 中：標準バン
+      { startFreq: 520, endFreq: 90,  noiseVol: 3.0, pitchVol: 2.5 },  // 右：高めパン
     ];
     const p = params[col !== undefined ? col % 3 : 0];
-    const bufSize = ctx.sampleRate * duration;
+
+    // 「バキューン」のピッチダウン部分（サイン波が急降下）
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(p.startFreq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(p.endFreq, ctx.currentTime + 0.5);
+    oscGain.gain.setValueAtTime(p.pitchVol, ctx.currentTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.connect(oscGain); oscGain.connect(compressor);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.5);
+
+    // 「バキ」の瞬間的な発射音（バンドパスノイズ）
+    const bufSize = ctx.sampleRate * 0.12;
     const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(p.filterStart, ctx.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(p.filterEnd, ctx.currentTime + 0.12);
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(1.0, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
-    noise.start(ctx.currentTime); noise.stop(ctx.currentTime + duration);
-    const osc = ctx.createOscillator();
-    const oscGain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(p.oscStart, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(p.oscEnd, ctx.currentTime + 0.15);
-    oscGain.gain.setValueAtTime(p.oscVol, ctx.currentTime);
-    oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-    osc.connect(oscGain); oscGain.connect(ctx.destination);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.2);
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 1200;
+    bandpass.Q.value = 0.5;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(p.noiseVol, ctx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    noise.connect(bandpass); bandpass.connect(noiseGain); noiseGain.connect(compressor);
+    noise.start(ctx.currentTime); noise.stop(ctx.currentTime + 0.12);
   } catch(e) {}
 }
 
