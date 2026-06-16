@@ -489,32 +489,33 @@ function playTapSound(col) {
 }
 
 // スクロール音：速度に応じたシューン
-let lastScrollY = 0, lastScrollTime = 0, scrollSoundTimer = null;
+let lastScrollY = 0, lastScrollTime = 0, scrollSoundTimer = null, scrollSoundPlaying = false;
 window.addEventListener('scroll', () => {
   const now = Date.now();
   const dy = Math.abs(window.scrollY - lastScrollY);
-  const dt = now - lastScrollTime || 1;
+  const dt = Math.max(now - lastScrollTime, 1);
   const speed = dy / dt; // px/ms
   lastScrollY = window.scrollY;
   lastScrollTime = now;
-  if (dy < 5) return;
-  clearTimeout(scrollSoundTimer);
-  scrollSoundTimer = setTimeout(() => {
-    try {
-      const ctx = getAudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = 'sine';
-      const freq = Math.min(800, 200 + speed * 600);
-      const dur  = Math.max(0.08, Math.min(0.3, speed * 0.5));
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(freq * 0.4, ctx.currentTime + dur);
-      gain.gain.setValueAtTime(Math.min(0.4, speed * 0.8), ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
-    } catch(e) {}
-  }, 30);
+  if (dy < 3) return;
+  if (scrollSoundPlaying) return; // 連打ち防止
+  scrollSoundPlaying = true;
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    // 速度に応じて音程と長さを変化
+    const freq = Math.min(1200, 300 + speed * 2000);
+    const dur  = Math.max(0.1, Math.min(0.4, 0.1 + speed * 0.8));
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.3, ctx.currentTime + dur);
+    gain.gain.setValueAtTime(1.5, ctx.currentTime); // 音量大幅アップ
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
+    setTimeout(() => { scrollSoundPlaying = false; }, dur * 1000 + 20);
+  } catch(e) { scrollSoundPlaying = false; }
 }, { passive: true });
 
 // スワイプ切り替え時：シューン音（方向で音程変化）
