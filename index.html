@@ -57,6 +57,18 @@
   .modal-nav:disabled { opacity: 0.3; cursor: default; }
   .modal-counter { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); color: white; padding: 4px 12px; border-radius: 12px; font-size: 13px; z-index: 210; }
 
+  /* タグ編集 */
+  .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+  .modal-tag .tag-del { background: none; border: none; color: #999; cursor: pointer; font-size: 14px; padding: 0; line-height: 1; }
+  .modal-tag .tag-del:hover { color: #e53935; }
+  .tag-edit-row { display: flex; gap: 6px; margin-top: 10px; margin-bottom: 10px; }
+  .tag-edit-input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none; }
+  .tag-edit-input:focus { border-color: #1a1a1a; }
+  .tag-add-btn { background: #1a1a1a; color: white; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .tag-save-btn { display: block; width: 100%; background: #4CAF50; color: white; border: none; border-radius: 10px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+  .tag-save-btn:hover { background: #43a047; }
+  .tag-save-btn:disabled { background: #aaa; cursor: default; }
+
   /* ローディング */
   .loading { text-align: center; padding: 40px; color: #999; font-size: 14px; }
 </style>
@@ -90,6 +102,11 @@
     <img class="modal-img" id="modalImg" src="" alt="">
     <div class="modal-info">
       <div class="modal-tags" id="modalTags"></div>
+      <div class="tag-edit-row">
+        <input class="tag-edit-input" id="tagInput" type="text" placeholder="タグを追加..." />
+        <button class="tag-add-btn" onclick="addTagToModal()">+ 追加</button>
+      </div>
+      <button class="tag-save-btn" id="tagSaveBtn" onclick="saveTags()">タグを保存</button>
       <div class="modal-meta" id="modalMeta"></div>
       <a class="modal-dl-btn" id="modalDlBtn" href="" download target="_blank">↓ この写真を保存</a>
     </div>
@@ -206,13 +223,79 @@ function showModalPhoto(idx) {
   const dlUrl = url.replace('/upload/', '/upload/fl_attachment/');
 
   document.getElementById('modalImg').src = url;
-  document.getElementById('modalTags').innerHTML = tags.map(t => `<span class="modal-tag">${t}</span>`).join('');
+  renderModalTags(tags);
+  document.getElementById('tagInput').value = '';
+  document.getElementById('tagSaveBtn').textContent = 'タグを保存';
+  document.getElementById('tagSaveBtn').disabled = false;
   document.getElementById('modalMeta').textContent = `${formatDate(date)}${by ? '　by ' + by : ''}`;
   document.getElementById('modalDlBtn').href = dlUrl;
   document.getElementById('modalCounter').textContent = `${idx + 1} / ${photos.length}`;
   document.getElementById('modalPrev').disabled = idx === 0;
   document.getElementById('modalNext').disabled = idx === photos.length - 1;
 }
+
+function renderModalTags(tags) {
+  document.getElementById('modalTags').innerHTML = tags.map(t =>
+    `<span class="modal-tag">${t}<button class="tag-del" onclick="removeTagFromModal('${t}')">x</button></span>`
+  ).join('');
+}
+
+function getCurrentModalTags() {
+  return Array.from(document.querySelectorAll('#modalTags .modal-tag')).map(el => el.childNodes[0].textContent.trim());
+}
+
+function addTagToModal() {
+  const input = document.getElementById('tagInput');
+  const tag = input.value.trim();
+  if (!tag) return;
+  const current = getCurrentModalTags();
+  if (current.includes(tag)) { input.value = ''; return; }
+  renderModalTags([...current, tag]);
+  input.value = '';
+}
+
+function removeTagFromModal(tag) {
+  const current = getCurrentModalTags().filter(t => t !== tag);
+  renderModalTags(current);
+}
+
+async function saveTags() {
+  const btn = document.getElementById('tagSaveBtn');
+  const tags = getCurrentModalTags();
+  const p = currentDisplayPhotos[currentModalIndex];
+  if (!p) return;
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photos?id=eq.${p.id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ tags })
+    });
+    if (res.ok) {
+      p.tags = tags;
+      btn.textContent = '保存完了!';
+      buildTagList();
+      setTimeout(() => { btn.textContent = 'タグを保存'; btn.disabled = false; }, 1500);
+    } else {
+      btn.textContent = 'エラー';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    btn.textContent = 'エラー';
+    btn.disabled = false;
+  }
+}
+
+// Enterキーでタグ追加
+document.getElementById('tagInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') addTagToModal();
+});
 
 function modalNav(dir) {
   showModalPhoto(currentModalIndex + dir);
