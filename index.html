@@ -243,7 +243,7 @@ function renderPhotos(photos) {
     return;
   }
   grid.innerHTML = photos.map((p, i) => `
-    <div class="photo-card" data-index="${i}" onclick="openModalByIndex(${i})">
+    <div class="photo-card" data-index="${i}" data-col="${i % 3}" onclick="openModalByIndex(${i}, ${i % 3})">
       <img src="${p.url}" alt="" loading="lazy">
       <div class="card-tags">${(p.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
       <div class="card-date">${formatDate(p.uploaded_at)}</div>
@@ -259,8 +259,8 @@ function formatDate(iso) {
 
 let currentModalIndex = 0;
 
-function openModalByIndex(idx) {
-  playTapSound();
+function openModalByIndex(idx, col) {
+  playTapSound(col !== undefined ? col : idx % 3);
   currentModalIndex = idx;
   showModalPhoto(idx);
   document.getElementById('modal').classList.add('open');
@@ -437,46 +437,74 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// 写真タップ時：銃声風ノイズ音
-function playTapSound() {
+// 写真タップ時：列(0=左/1=中/2=右)で音程が違う銃声風ノイズ音
+// col=0: 低音ドン、col=1: 中音バン、col=2: 高音パン
+function playTapSound(col) {
   try {
     const ctx = getAudioCtx();
     const duration = 0.35;
-    // ホワイトノイズバッファ生成
+    // 列ごとのパラメータ
+    const params = [
+      { filterStart: 1200, filterEnd: 150, oscStart: 90,  oscEnd: 30,  oscVol: 1.0 },  // 左：重い低音
+      { filterStart: 2000, filterEnd: 300, oscStart: 150, oscEnd: 60,  oscVol: 0.8 },  // 中：標準
+      { filterStart: 3500, filterEnd: 600, oscStart: 220, oscEnd: 100, oscVol: 0.6 },  // 右：高めパン
+    ];
+    const p = params[col !== undefined ? col % 3 : 0];
     const bufSize = ctx.sampleRate * duration;
     const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
-    // ローパスフィルターで低音を強調（ドスッ感）
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1800, ctx.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.12);
-    // 音量エンベロープ（瞬間的に大きく、すぐ減衰）
+    filter.frequency.setValueAtTime(p.filterStart, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(p.filterEnd, ctx.currentTime + 0.12);
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(1.0, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-    noise.start(ctx.currentTime);
-    noise.stop(ctx.currentTime + duration);
-    // 低音の「ドン」成分を追加
+    noise.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    noise.start(ctx.currentTime); noise.stop(ctx.currentTime + duration);
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.15);
-    oscGain.gain.setValueAtTime(0.9, ctx.currentTime);
+    osc.frequency.setValueAtTime(p.oscStart, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(p.oscEnd, ctx.currentTime + 0.15);
+    oscGain.gain.setValueAtTime(p.oscVol, ctx.currentTime);
     oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-    osc.connect(oscGain);
-    oscGain.connect(ctx.destination);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.2);
+    osc.connect(oscGain); oscGain.connect(ctx.destination);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.2);
   } catch(e) {}
 }
+
+// スクロール音：速度に応じたシューン
+let lastScrollY = 0, lastScrollTime = 0, scrollSoundTimer = null;
+window.addEventListener('scroll', () => {
+  const now = Date.now();
+  const dy = Math.abs(window.scrollY - lastScrollY);
+  const dt = now - lastScrollTime || 1;
+  const speed = dy / dt; // px/ms
+  lastScrollY = window.scrollY;
+  lastScrollTime = now;
+  if (dy < 5) return;
+  clearTimeout(scrollSoundTimer);
+  scrollSoundTimer = setTimeout(() => {
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      const freq = Math.min(800, 200 + speed * 600);
+      const dur  = Math.max(0.08, Math.min(0.3, speed * 0.5));
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.4, ctx.currentTime + dur);
+      gain.gain.setValueAtTime(Math.min(0.4, speed * 0.8), ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+      osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
+    } catch(e) {}
+  }, 30);
+}, { passive: true });
 
 // スワイプ切り替え時：シューン音（方向で音程変化）
 function playSwipeSound(dir) {
