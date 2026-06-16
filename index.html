@@ -437,21 +437,44 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// 写真タップ時：明るいポップ音
+// 写真タップ時：銃声風ノイズ音
 function playTapSound() {
   try {
     const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
+    const duration = 0.35;
+    // ホワイトノイズバッファ生成
+    const bufSize = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    // ローパスフィルターで低音を強調（ドスッ感）
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1800, ctx.currentTime);
+    filter.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.12);
+    // 音量エンベロープ（瞬間的に大きく、すぐ減衰）
     const gain = ctx.createGain();
-    osc.connect(gain);
+    gain.gain.setValueAtTime(1.0, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    noise.connect(filter);
+    filter.connect(gain);
     gain.connect(ctx.destination);
+    noise.start(ctx.currentTime);
+    noise.stop(ctx.currentTime + duration);
+    // 低音の「ドン」成分を追加
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.08);
-    gain.gain.setValueAtTime(0.8, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+    osc.frequency.setValueAtTime(120, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.15);
+    oscGain.gain.setValueAtTime(0.9, ctx.currentTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.connect(oscGain);
+    oscGain.connect(ctx.destination);
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.18);
+    osc.stop(ctx.currentTime + 0.2);
   } catch(e) {}
 }
 
