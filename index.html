@@ -33,9 +33,11 @@
   .tag-btn.active { background: #1a1a1a; color: white; }
 
   /* 写真グリッド */
-  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  @media (min-width: 1200px) { .photo-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+  @media (min-width: 1600px) { .photo-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); } }
   @media (max-width: 480px) { .photo-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; } }
-  .photo-card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s; }
+  .photo-card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .photo-card:hover { transform: scale(1.02); }
   .photo-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
   .photo-card .card-tags { padding: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
@@ -48,9 +50,10 @@
   /* モーダル */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 200; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
-  .modal-content { background: white; border-radius: 16px; max-width: 92vw; max-height: 92vh; overflow-y: auto; width: 500px; position: relative; }
+  .modal-content { background: white; border-radius: 16px; max-width: 92vw; max-height: 92vh; overflow-y: auto; width: min(680px, 92vw); position: relative; }
+  @media (min-width: 1200px) { .modal-content { width: min(800px, 80vw); } }
   .modal-img-wrap { overflow: hidden; border-radius: 16px 16px 0 0; background: #000; position: relative; }
-  .modal-img { width: 100%; max-height: 60vh; object-fit: contain; display: block; transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease; will-change: transform, opacity; }
+  .modal-img { width: 100%; max-height: 70vh; object-fit: contain; display: block; transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.15s ease; will-change: transform, opacity; }
   .modal-img.slide-out-left  { transform: translateX(-30%); opacity: 0; }
   .modal-img.slide-out-right { transform: translateX(30%);  opacity: 0; }
   .modal-img.slide-in-left   { transform: translateX(30%);  opacity: 0; transition: none; }
@@ -246,7 +249,7 @@ function renderPhotos(photos) {
     return;
   }
   grid.innerHTML = photos.map((p, i) => `
-    <div class="photo-card" data-index="${i}" onclick="openModalByIndex(${i})">
+    <div class="photo-card" data-index="${i}" onclick="openModalByIndex(${i})" ontouchstart="">
       <img src="${p.url}" alt="" loading="lazy">
       <div class="card-tags">${(p.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
       <div class="card-date">${formatDate(p.uploaded_at)}</div>
