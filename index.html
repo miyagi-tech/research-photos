@@ -93,8 +93,7 @@
     <div class="tag-filter-header">
       <h2>タグで絞り込む</h2>
       <div class="tag-filter-controls">
-        <button class="sort-btn" id="sortJaBtn" onclick="setSortMode('ja')">あいうえお順</button>
-        <button class="sort-btn" id="sortEnBtn" onclick="setSortMode('en')">ABC順</button>
+        <button class="sort-btn" id="sortBtn" onclick="toggleSort()">整列</button>
         <button class="clear-btn" onclick="clearTags()">クリア</button>
       </div>
     </div>
@@ -145,7 +144,7 @@ const SUPABASE_KEY = 'sb_publishable_c1r0_R5I8hUcbpca04duqA_EWrR3Fw0';
 
 let allPhotos = [];
 let activeTags = new Set();
-let tagSortMode = 'none'; // 'none' | 'ja' | 'en'
+let tagSortMode = 'none'; // 'none' | 'sorted'
 let tagListExpanded = false;
 
 async function loadPhotos() {
@@ -161,10 +160,9 @@ async function loadPhotos() {
   }
 }
 
-function setSortMode(mode) {
-  tagSortMode = tagSortMode === mode ? 'none' : mode;
-  document.getElementById('sortJaBtn').classList.toggle('active', tagSortMode === 'ja');
-  document.getElementById('sortEnBtn').classList.toggle('active', tagSortMode === 'en');
+function toggleSort() {
+  tagSortMode = tagSortMode === 'sorted' ? 'none' : 'sorted';
+  document.getElementById('sortBtn').classList.toggle('active', tagSortMode === 'sorted');
   buildTagList();
 }
 
@@ -173,10 +171,12 @@ function buildTagList() {
   allPhotos.forEach(p => (p.tags || []).forEach(t => tagSet.add(t)));
   let tags = Array.from(tagSet);
 
-  if (tagSortMode === 'ja') {
-    tags.sort((a, b) => a.localeCompare(b, 'ja'));
-  } else if (tagSortMode === 'en') {
-    tags.sort((a, b) => a.localeCompare(b, 'en'));
+  if (tagSortMode === 'sorted') {
+    // 英語タグ（ABC順）→日本語タグ（あいうえお順）の順に並べる
+    const isJa = t => /[\u3000-\u9FFF\uF900-\uFAFF]/.test(t);
+    const enTags = tags.filter(t => !isJa(t)).sort((a, b) => a.localeCompare(b, 'en'));
+    const jaTags = tags.filter(t => isJa(t)).sort((a, b) => a.localeCompare(b, 'ja'));
+    tags = [...enTags, ...jaTags];
   }
 
   const container = document.getElementById('tagList');
