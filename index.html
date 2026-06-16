@@ -14,7 +14,7 @@
   .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
 
   /* タグフィルター */
-  .tag-filter { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .tag-filter { background: white; border-radius: 0 0 12px 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); position: sticky; top: 56px; z-index: 90; }
   .tag-filter-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
   .tag-filter-header h2 { font-size: 14px; color: #666; }
   .tag-filter-controls { display: flex; gap: 6px; align-items: center; }
@@ -391,11 +391,20 @@ document.addEventListener('keydown', e => {
 });
 
 let touchStartX = 0;
-document.getElementById('modal').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+let touchStartTime = 0;
+document.getElementById('modal').addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartTime = Date.now();
+}, { passive: true });
 document.getElementById('modal').addEventListener('touchend', e => {
   const diff = touchStartX - e.changedTouches[0].clientX;
-  if (Math.abs(diff) > 50) modalNav(diff > 0 ? 1 : -1);
-});
+  const elapsed = Date.now() - touchStartTime;
+  const velocity = Math.abs(diff) / elapsed; // px/ms
+  // 素早いフリック（velocity > 0.3）または十分な移動距離（> 50px）で切り替え
+  if (velocity > 0.3 || Math.abs(diff) > 50) {
+    modalNav(diff > 0 ? 1 : -1);
+  }
+}, { passive: true });
 
 document.getElementById('tagInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') addTagToModal();
