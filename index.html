@@ -261,9 +261,11 @@ function formatDate(iso) {
 }
 
 let currentModalIndex = 0;
+let currentNoteStep = 0; // 現在の音階ステップ
 
 function openModalByIndex(idx) {
-  playTapSound(idx % 8);
+  currentNoteStep = idx % 8;
+  playTapSound(currentNoteStep);
   currentModalIndex = idx;
   showModalPhoto(idx);
   document.getElementById('modal').classList.add('open');
@@ -506,9 +508,10 @@ function playTapSound(step) {
 }
 
 
-// モーダル横移動時：ドレミスケールで音程変化
+// モーダル横移動時：選択音の次の音から続く
 function playSwipeSound(dir) {
-  playTapSound(currentModalIndex % 8);
+  currentNoteStep = (currentNoteStep + 1) % 8;
+  playTapSound(currentNoteStep);
 }
 
 loadPhotos();
