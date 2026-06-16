@@ -488,8 +488,8 @@ function playTapSound(col) {
   } catch(e) {}
 }
 
-// スクロール音：速度に応じたシューン
-let lastScrollY = 0, lastScrollTime = 0, scrollSoundTimer = null, scrollSoundPlaying = false;
+// スクロール音：宇宙ワープ音
+let lastScrollY = 0, lastScrollTime = 0, scrollSoundPlaying = false;
 window.addEventListener('scroll', () => {
   const now = Date.now();
   const dy = Math.abs(window.scrollY - lastScrollY);
@@ -498,23 +498,62 @@ window.addEventListener('scroll', () => {
   lastScrollY = window.scrollY;
   lastScrollTime = now;
   if (dy < 3) return;
-  if (scrollSoundPlaying) return; // 連打ち防止
+  if (scrollSoundPlaying) return;
   scrollSoundPlaying = true;
   try {
     const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sine';
-    // 速度に応じて音程と長さを変化
-    const freq = Math.min(1200, 300 + speed * 2000);
-    const dur  = Math.max(0.1, Math.min(0.4, 0.1 + speed * 0.8));
-    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.3, ctx.currentTime + dur);
-    gain.gain.setValueAtTime(1.5, ctx.currentTime); // 音量大幅アップ
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + dur);
-    setTimeout(() => { scrollSoundPlaying = false; }, dur * 1000 + 20);
+    const t = ctx.currentTime;
+    // 速度に応じてワープの強さを変える
+    const intensity = Math.min(1.0, speed * 3.0);
+    const dur = 0.35 + intensity * 0.35; // 0.35〜0.7秒
+
+    // レイヤー1: メインワープ（鋸波 → 低音へ急降下）
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(60 + intensity * 40, t);
+    osc1.frequency.setValueAtTime(60 + intensity * 40, t + 0.02);
+    osc1.frequency.exponentialRampToValueAtTime(2000 + intensity * 2000, t + dur * 0.25);
+    osc1.frequency.exponentialRampToValueAtTime(30, t + dur);
+    gain1.gain.setValueAtTime(0.0, t);
+    gain1.gain.linearRampToValueAtTime(1.0, t + 0.04);
+    gain1.gain.setValueAtTime(1.0, t + dur * 0.25);
+    gain1.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc1.connect(gain1); gain1.connect(ctx.destination);
+    osc1.start(t); osc1.stop(t + dur);
+
+    // レイヤー2: 高音シュワン（正弦波 → 急上昇後急降下）
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(200, t);
+    osc2.frequency.exponentialRampToValueAtTime(3500 + intensity * 1500, t + dur * 0.3);
+    osc2.frequency.exponentialRampToValueAtTime(80, t + dur);
+    gain2.gain.setValueAtTime(0.0, t);
+    gain2.gain.linearRampToValueAtTime(0.7, t + 0.05);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.start(t); osc2.stop(t + dur);
+
+    // レイヤー3: 宇宙的うなり（低周波ビブラート）
+    const osc3 = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const gain3 = ctx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(8 + intensity * 12, t);
+    lfoGain.gain.setValueAtTime(60 + intensity * 80, t);
+    osc3.type = 'triangle';
+    osc3.frequency.setValueAtTime(120 + intensity * 60, t);
+    osc3.frequency.exponentialRampToValueAtTime(40, t + dur);
+    lfo.connect(lfoGain); lfoGain.connect(osc3.frequency);
+    gain3.gain.setValueAtTime(0.5, t);
+    gain3.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc3.connect(gain3); gain3.connect(ctx.destination);
+    lfo.start(t); lfo.stop(t + dur);
+    osc3.start(t); osc3.stop(t + dur);
+
+    setTimeout(() => { scrollSoundPlaying = false; }, dur * 1000 + 30);
   } catch(e) { scrollSoundPlaying = false; }
 }, { passive: true });
 
