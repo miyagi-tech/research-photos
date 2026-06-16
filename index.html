@@ -15,6 +15,9 @@
   /* タグフィルター */
   .tag-filter { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
   .tag-filter h2 { font-size: 14px; color: #666; margin-bottom: 10px; }
+  .tag-filter-hint { font-size: 12px; color: #aaa; margin-bottom: 8px; }
+  .clear-btn { background: none; border: 1px solid #ccc; padding: 5px 12px; border-radius: 16px; font-size: 12px; cursor: pointer; color: #666; margin-left: 4px; }
+  .clear-btn:hover { background: #f0f0f0; }
   .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
   .tag-btn { background: #f0f0f0; border: none; padding: 6px 12px; border-radius: 16px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
   .tag-btn.active { background: #1a1a1a; color: white; }
@@ -60,10 +63,9 @@
 
 <div class="container">
   <div class="tag-filter">
-    <h2>タグで絞り込む</h2>
-    <div class="tag-list" id="tagList">
-      <button class="tag-btn active" onclick="filterTag(null, this)">すべて</button>
-    </div>
+    <h2>タグで絞り込む <button class="clear-btn" onclick="clearTags()">クリア</button></h2>
+    <div class="tag-filter-hint">複数タグを選ぶと「どれかに当てはまる」写真が表示されます</div>
+    <div class="tag-list" id="tagList"></div>
   </div>
 
   <div id="photoGrid" class="photo-grid">
@@ -88,7 +90,7 @@ const SUPABASE_URL = 'https://alwivconpehsnwkfqjez.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_c1r0_R5I8hUcbpca04duqA_EWrR3Fw0';
 
 let allPhotos = [];
-let currentTag = null;
+let activeTags = new Set();
 
 async function loadPhotos() {
   try {
@@ -110,21 +112,41 @@ function buildTagList() {
   const tagSet = new Set();
   allPhotos.forEach(p => (p.tags || []).forEach(t => tagSet.add(t)));
   const container = document.getElementById('tagList');
-  container.innerHTML = '<button class="tag-btn active" onclick="filterTag(null, this)">すべて</button>';
+  container.innerHTML = '';
   tagSet.forEach(tag => {
     const btn = document.createElement('button');
-    btn.className = 'tag-btn';
+    btn.className = 'tag-btn' + (activeTags.has(tag) ? ' active' : '');
     btn.textContent = tag;
-    btn.onclick = function() { filterTag(tag, this); };
+    btn.onclick = function() { toggleTag(tag, this); };
     container.appendChild(btn);
   });
 }
 
-function filterTag(tag, btn) {
-  currentTag = tag;
+function toggleTag(tag, btn) {
+  if (activeTags.has(tag)) {
+    activeTags.delete(tag);
+    btn.classList.remove('active');
+  } else {
+    activeTags.add(tag);
+    btn.classList.add('active');
+  }
+  applyFilter();
+}
+
+function clearTags() {
+  activeTags.clear();
   document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  const filtered = tag ? allPhotos.filter(p => (p.tags || []).includes(tag)) : allPhotos;
+  renderPhotos(allPhotos);
+}
+
+function applyFilter() {
+  if (activeTags.size === 0) {
+    renderPhotos(allPhotos);
+    return;
+  }
+  const filtered = allPhotos.filter(p =>
+    (p.tags || []).some(t => activeTags.has(t))
+  );
   renderPhotos(filtered);
 }
 
