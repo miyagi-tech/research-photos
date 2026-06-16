@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>リサーチ写真ライブラリ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: #f5f5f5; color: #333; }
+  header { background: #1a1a1a; color: white; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  .upload-btn { background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-block; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  
+  /* タグフィルター */
+  .tag-filter { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .tag-filter h2 { font-size: 14px; color: #666; margin-bottom: 10px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag-btn { background: #f0f0f0; border: none; padding: 6px 12px; border-radius: 16px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+  .tag-btn.active { background: #1a1a1a; color: white; }
+  .tag-btn:hover { background: #ddd; }
+  .tag-btn.active:hover { background: #333; }
+
+  /* 写真グリッド */
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  @media (max-width: 480px) { .photo-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
+  .photo-card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s; }
+  .photo-card:hover { transform: scale(1.02); }
+  .photo-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .photo-card .card-tags { padding: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .card-tag { background: #f0f0f0; font-size: 11px; padding: 2px 7px; border-radius: 10px; color: #555; }
+  .photo-card .card-date { padding: 0 8px 8px; font-size: 11px; color: #999; }
+
+  /* 空状態 */
+  .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+  .empty-state p { font-size: 16px; margin-bottom: 8px; }
+  .empty-state small { font-size: 13px; }
+
+  /* モーダル */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-content { background: white; border-radius: 16px; max-width: 90vw; max-height: 90vh; overflow-y: auto; width: 480px; }
+  .modal-img { width: 100%; max-height: 60vh; object-fit: contain; background: #000; border-radius: 16px 16px 0 0; }
+  .modal-info { padding: 16px; }
+  .modal-info .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .modal-info .modal-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 12px; font-size: 13px; }
+  .modal-info .modal-meta { font-size: 12px; color: #999; }
+  .modal-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  /* ローディング */
+  .loading { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>リサーチ写真</h1>
+  <a href="upload.html" class="upload-btn">＋ アップロード</a>
+</header>
+
+<div class="container">
+  <div class="tag-filter">
+    <h2>タグで絞り込む</h2>
+    <div class="tag-list" id="tagList">
+      <button class="tag-btn active" onclick="filterTag(null, this)">すべて</button>
+    </div>
+  </div>
+
+  <div id="photoGrid" class="photo-grid">
+    <div class="loading">読み込み中...</div>
+  </div>
+</div>
+
+<!-- 拡大モーダル -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <button class="modal-close" onclick="document.getElementById('modal').classList.remove('open')">×</button>
+  <div class="modal-content">
+    <img class="modal-img" id="modalImg" src="" alt="">
+    <div class="modal-info">
+      <div class="modal-tags" id="modalTags"></div>
+      <div class="modal-meta" id="modalMeta"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://alwivconpehsnwkfqjez.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_c1r0_R5I8hUcbpca04duqA_EWrR3Fw0';
+
+let allPhotos = [];
+let currentTag = null;
+
+async function loadPhotos() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/photos?order=uploaded_at.desc`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    allPhotos = await res.json();
+    buildTagList();
+    renderPhotos(allPhotos);
+  } catch(e) {
+    document.getElementById('photoGrid').innerHTML = '<div class="empty-state"><p>読み込みエラー</p><small>' + e.message + '</small></div>';
+  }
+}
+
+function buildTagList() {
+  const tagSet = new Set();
+  allPhotos.forEach(p => (p.tags || []).forEach(t => tagSet.add(t)));
+  const container = document.getElementById('tagList');
+  container.innerHTML = '<button class="tag-btn active" onclick="filterTag(null, this)">すべて</button>';
+  tagSet.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-btn';
+    btn.textContent = tag;
+    btn.onclick = function() { filterTag(tag, this); };
+    container.appendChild(btn);
+  });
+}
+
+function filterTag(tag, btn) {
+  currentTag = tag;
+  document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = tag ? allPhotos.filter(p => (p.tags || []).includes(tag)) : allPhotos;
+  renderPhotos(filtered);
+}
+
+function renderPhotos(photos) {
+  const grid = document.getElementById('photoGrid');
+  if (!photos.length) {
+    grid.innerHTML = '<div class="empty-state"><p>写真がありません</p><small>アップロードボタンから追加してください</small></div>';
+    return;
+  }
+  grid.innerHTML = photos.map(p => `
+    <div class="photo-card" onclick="openModal('${p.url}', ${JSON.stringify(p.tags || [])}, '${p.uploaded_at}', '${p.uploaded_by || ''}')">
+      <img src="${p.url}" alt="" loading="lazy">
+      <div class="card-tags">${(p.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
+      <div class="card-date">${formatDate(p.uploaded_at)}</div>
+    </div>
+  `).join('');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function openModal(url, tags, date, by) {
+  document.getElementById('modalImg').src = url;
+  document.getElementById('modalTags').innerHTML = tags.map(t => `<span class="modal-tag">${t}</span>`).join('');
+  document.getElementById('modalMeta').textContent = `${formatDate(date)}${by ? '　by ' + by : ''}`;
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal')) {
+    document.getElementById('modal').classList.remove('open');
+  }
+}
+
+loadPhotos();
+</script>
+</body>
+</html>
