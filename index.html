@@ -39,7 +39,8 @@
   @media (max-width: 480px) { .photo-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; } }
   .photo-card { background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.15s; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   .photo-card:hover { transform: scale(1.02); }
-  .photo-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+  .photo-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #e8e8e8; }
+  .photo-card img.loaded { background: none; }
   .photo-card .card-tags { padding: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
   .card-tag { background: #f0f0f0; font-size: 11px; padding: 2px 7px; border-radius: 10px; color: #555; }
   .photo-card .card-date { padding: 0 8px 8px; font-size: 11px; color: #999; }
@@ -248,13 +249,16 @@ function renderPhotos(photos) {
     grid.innerHTML = '<div class="empty-state"><p>写真がありません</p></div>';
     return;
   }
-  grid.innerHTML = photos.map((p, i) => `
+  grid.innerHTML = photos.map((p, i) => {
+    // Cloudinaryのサムネイル最適化: 幅300px・WebP・品質自動
+    const thumbUrl = p.url.replace('/upload/', '/upload/w_300,h_300,c_fill,f_auto,q_auto/');
+    return `
     <div class="photo-card" data-index="${i}" onclick="openModalByIndex(${i})" ontouchstart="">
-      <img src="${p.url}" alt="" loading="lazy">
+      <img src="${thumbUrl}" alt="" loading="lazy" decoding="async" onload="this.classList.add('loaded')">
       <div class="card-tags">${(p.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
       <div class="card-date">${formatDate(p.uploaded_at)}</div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function formatDate(iso) {
