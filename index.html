@@ -243,7 +243,7 @@ function renderPhotos(photos) {
     return;
   }
   grid.innerHTML = photos.map((p, i) => `
-    <div class="photo-card" data-index="${i}" data-col="${i % 3}" onclick="openModalByIndex(${i}, ${i % 3})">
+    <div class="photo-card" data-index="${i}" onclick="openModalByIndex(${i})">
       <img src="${p.url}" alt="" loading="lazy">
       <div class="card-tags">${(p.tags || []).map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
       <div class="card-date">${formatDate(p.uploaded_at)}</div>
@@ -259,8 +259,8 @@ function formatDate(iso) {
 
 let currentModalIndex = 0;
 
-function openModalByIndex(idx, col) {
-  playTapSound(col !== undefined ? col : idx % 3);
+function openModalByIndex(idx) {
+  playTapSound(idx % 8);
   currentModalIndex = idx;
   showModalPhoto(idx);
   document.getElementById('modal').classList.add('open');
@@ -437,8 +437,8 @@ function getAudioCtx() {
   return audioCtx;
 }
 
-// 写真タップ時：気持ちいいクリック音（列で音程変化）
-function playTapSound(col) {
+// 写真タップ時：ドレミファソラシドの8音
+function playTapSound(step) {
   try {
     const ctx = getAudioCtx();
     const t = ctx.currentTime;
@@ -450,13 +450,18 @@ function playTapSound(col) {
     compressor.release.value = 0.15;
     compressor.connect(ctx.destination);
 
-    // 列ごとの音程（ミファソル・ラ・シの3音）
+    // ドレミファソラシド（C5〜高C6）
     const notes = [
-      { freq: 523.25 },  // 左列：C5（ド）
-      { freq: 659.25 },  // 中列：E5（ミ）
-      { freq: 783.99 },  // 右列：G5（ソ）
+      523.25,  // ド C5
+      587.33,  // レ D5
+      659.25,  // ミ E5
+      698.46,  // ファ F5
+      783.99,  // ソ G5
+      880.00,  // ラ A5
+      987.77,  // シ B5
+      1046.50, // 高ド C6
     ];
-    const note = notes[col !== undefined ? col % 3 : 0];
+    const note = { freq: notes[step % 8] };
 
     // メイントーン（正弦波）
     const osc1 = ctx.createOscillator();
@@ -498,24 +503,9 @@ function playTapSound(col) {
 }
 
 
-// スワイプ切り替え時：シューン音（方向で音程変化）
+// モーダル横移動時：ドレミスケールで音程変化
 function playSwipeSound(dir) {
-  try {
-    const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    const startFreq = dir > 0 ? 600 : 900;
-    const endFreq   = dir > 0 ? 300 : 500;
-    osc.frequency.setValueAtTime(startFreq, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + 0.22);
-    gain.gain.setValueAtTime(0.7, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.22);
-  } catch(e) {}
+  playTapSound(currentModalIndex % 8);
 }
 
 loadPhotos();
